@@ -114,7 +114,7 @@ func TestDecode(t *testing.T) {
 		b.WriteByte(0x00) // An empty block signifies the end of the image data.
 		b.WriteString(trailerStr)
 
-		got, err := Decode(b)
+		got, err := NewDecoder(b).DecodeFirst()
 		if err != tc.wantErr {
 			t.Errorf("nPix=%d, extraExisting=%d, extraSeparate=%d\ngot  %v\nwant %v",
 				tc.nPix, tc.extraExisting, tc.extraSeparate, err, tc.wantErr)
@@ -162,7 +162,7 @@ func TestTransparentIndex(t *testing.T) {
 	}
 	b.WriteString(trailerStr)
 
-	g, err := DecodeAll(b)
+	g, err := NewDecoder(b).Decode()
 	if err != nil {
 		t.Fatalf("DecodeAll: %v", err)
 	}
@@ -203,7 +203,7 @@ var testGIF = []byte{
 }
 
 func try(t *testing.T, b []byte, want string) {
-	_, err := DecodeAll(bytes.NewReader(b))
+	_, err := NewDecoder(bytes.NewReader(b)).Decode()
 	var got string
 	if err != nil {
 		got = err.Error()
@@ -354,16 +354,16 @@ func TestLoopCount(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			img, err := DecodeAll(bytes.NewReader(tc.data))
+			img, err := NewDecoder(bytes.NewReader(tc.data)).Decode()
 			if err != nil {
 				t.Fatal("DecodeAll:", err)
 			}
 			w := new(bytes.Buffer)
-			err = EncodeAll(w, img)
+			err = NewEncoder(w).Encode(img)
 			if err != nil {
 				t.Fatal("EncodeAll:", err)
 			}
-			img1, err := DecodeAll(w)
+			img1, err := NewDecoder(w).Decode()
 			if err != nil {
 				t.Fatal("DecodeAll:", err)
 			}
@@ -379,14 +379,11 @@ func TestLoopCount(t *testing.T) {
 
 func TestUnexpectedEOF(t *testing.T) {
 	for i := len(testGIF) - 1; i >= 0; i-- {
-		_, err := Decode(bytes.NewReader(testGIF[:i]))
-		if err == errNotEnough {
+		_, err := NewDecoder(bytes.NewReader(testGIF[:i])).DecodeFirst()
+		if err == nil || err == errNotEnough {
 			continue
 		}
-		text := ""
-		if err != nil {
-			text = err.Error()
-		}
+		text := err.Error()
 		if !strings.HasPrefix(text, "gif:") || !strings.HasSuffix(text, ": unexpected EOF") {
 			t.Errorf("Decode(testGIF[:%d]) = %v, want gif: ...: unexpected EOF", i, err)
 		}
@@ -407,14 +404,14 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 		hugeGIF.Delay[i] = 60
 	}
 	buf := new(bytes.Buffer)
-	if err := EncodeAll(buf, hugeGIF); err != nil {
+	if err := NewEncoder(buf).Encode(hugeGIF); err != nil {
 		t.Fatal("EncodeAll:", err)
 	}
 	s0, s1 := new(runtime.MemStats), new(runtime.MemStats)
 	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(5))
 	runtime.ReadMemStats(s0)
-	if _, err := Decode(buf); err != nil {
+	if _, err := NewDecoder(buf).DecodeFirst(); err != nil {
 		t.Fatal("Decode:", err)
 	}
 	runtime.ReadMemStats(s1)
@@ -428,7 +425,7 @@ func BenchmarkDecode(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	cfg, err := DecodeConfig(bytes.NewReader(data))
+	cfg, err := NewDecoder(bytes.NewReader(data)).DecodeConfig()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -436,6 +433,6 @@ func BenchmarkDecode(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Decode(bytes.NewReader(data))
+		NewDecoder(bytes.NewReader(data)).DecodeFirst()
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"time"
 )
 
 type (
@@ -22,9 +23,9 @@ type (
 		CharacterCellHeight      byte
 		TextForegroundColorIndex byte
 		TextBackgroundColorIndex byte
-		Strings                  []string // Text, up to 255 ASCII characters per string.
-		DelayTime                uint16   // Delay time in 100ths of a second.
-		DisposalMethod           byte     // Disposal method, one of DisposalNone, DisposalBackground, DisposalPrevious.
+		Strings                  []string      // Text, up to 255 ASCII characters per string.
+		DelayTime                time.Duration // Delay time rounded to 100ths of a second.
+		DisposalMethod           byte          // Disposal method, one of DisposalNone, DisposalBackground, DisposalPrevious.
 	}
 	Comment struct {
 		Strings []string // Comments, up to 255 ASCII characters per string.
@@ -43,7 +44,7 @@ type (
 	}
 	Frame struct {
 		Image          *image.Paletted // Paletted image.
-		DelayTime      uint16          // Delay time in 100ths of a second.
+		DelayTime      time.Duration   // Delay time rounded to 100ths of a second.
 		DisposalMethod byte            // Disposal method, one of DisposalNone, DisposalBackground, DisposalPrevious.
 	}
 )
@@ -81,7 +82,7 @@ func (d *Decoder) Decode() (*GIF, error) {
 				g.LoopCount = b.LoopCount
 			case *Frame:
 				g.Image = append(g.Image, b.Image)
-				g.Delay = append(g.Delay, int(b.DelayTime))
+				g.Delay = append(g.Delay, int(b.DelayTime/(10*time.Millisecond)))
 				g.Disposal = append(g.Disposal, b.DisposalMethod)
 			}
 		}
@@ -150,7 +151,7 @@ func (d *Decoder) ReadBlock() (any, error) {
 			}
 			f := &Frame{
 				Image:          d.image[0],
-				DelayTime:      uint16(d.delay[0]),
+				DelayTime:      time.Duration(d.delay[0]) * 10 * time.Millisecond,
 				DisposalMethod: d.disposal[0],
 			}
 			d.image = d.image[:0]
@@ -207,7 +208,7 @@ func (d *Decoder) readPlainText() (*PlainText, error) {
 		CharacterCellHeight:      d.tmp[10],
 		TextForegroundColorIndex: d.tmp[11],
 		TextBackgroundColorIndex: d.tmp[12],
-		DelayTime:                uint16(d.delayTime),
+		DelayTime:                time.Duration(d.delayTime) * 10 * time.Millisecond,
 		DisposalMethod:           d.disposalMethod,
 	}
 

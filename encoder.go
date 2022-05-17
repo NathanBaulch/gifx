@@ -10,6 +10,7 @@ import (
 	"image/draw"
 	"io"
 	"math"
+	"time"
 	"unicode"
 )
 
@@ -54,7 +55,7 @@ func (e *Encoder) Encode(g *GIF) error {
 		if g.Disposal != nil {
 			disposal = g.Disposal[i]
 		}
-		if err := e.WriteFrame(&Frame{Image: pm, DelayTime: uint16(g.Delay[i]), DisposalMethod: disposal}); err != nil {
+		if err := e.WriteFrame(&Frame{Image: pm, DelayTime: time.Duration(g.Delay[i]) * 10 * time.Millisecond, DisposalMethod: disposal}); err != nil {
 			return err
 		}
 	}
@@ -160,7 +161,7 @@ func (e *Encoder) WritePlainText(pt *PlainText) error {
 		e.buf[1] = eGraphicControl
 		e.buf[2] = 0x04
 		e.buf[3] = pt.DisposalMethod << 2
-		writeUint16(e.buf[4:6], pt.DelayTime)
+		writeUint16(e.buf[4:6], uint16(pt.DelayTime/(10*time.Millisecond)))
 		e.buf[6] = 0x00
 		e.buf[7] = 0x00
 		e.write(e.buf[:8])
@@ -323,7 +324,7 @@ func (e *Encoder) writeSubBlocks(subBlocks [][]byte) error {
 }
 
 func (e *Encoder) WriteFrame(f *Frame) error {
-	e.writeImageBlock(f.Image, int(f.DelayTime), f.DisposalMethod)
+	e.writeImageBlock(f.Image, int(f.DelayTime/(10*time.Millisecond)), f.DisposalMethod)
 	return e.err
 }
 

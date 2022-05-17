@@ -8,6 +8,7 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"time"
 
 	"golang.org/x/image/colornames"
 )
@@ -15,7 +16,7 @@ import (
 func TestFrame(t *testing.T) {
 	f := &Frame{
 		Image:          image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{colornames.Black, colornames.White}),
-		DelayTime:      9,
+		DelayTime:      90 * time.Millisecond,
 		DisposalMethod: DisposalBackground,
 	}
 	data := doEncode(t, func(enc *Encoder) {
@@ -46,7 +47,7 @@ func TestPlainText(t *testing.T) {
 		TextForegroundColorIndex: 7,
 		TextBackgroundColorIndex: 8,
 		Strings:                  []string{"hello"},
-		DelayTime:                9,
+		DelayTime:                90 * time.Millisecond,
 		DisposalMethod:           DisposalBackground,
 	}
 	data := doEncode(t, func(enc *Encoder) {

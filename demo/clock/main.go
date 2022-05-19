@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/png"
 	"io"
@@ -16,8 +17,9 @@ import (
 
 var (
 	//go:embed 7segment.png
-	ssBytes []byte
-	ssImage *image.Paletted
+	ssBytes      []byte
+	ssImage      *image.Paletted
+	ssTransIndex uint8
 )
 
 const (
@@ -30,6 +32,21 @@ func main() {
 		panic(err)
 	} else {
 		ssImage = im.(*image.Paletted)
+	}
+
+	found := false
+	for i, c := range ssImage.Palette {
+		if _, _, _, a := c.RGBA(); a == 0 {
+			found = true
+			ssTransIndex = uint8(i)
+		}
+	}
+	if !found {
+		if len(ssImage.Palette) == 0xff {
+			panic("no space for transparent entry in image palette")
+		}
+		ssTransIndex = uint8(len(ssImage.Palette))
+		ssImage.Palette = append(ssImage.Palette, color.Transparent)
 	}
 
 	http.HandleFunc("/time", handleTime)
@@ -80,6 +97,7 @@ func handle(w http.ResponseWriter, req *http.Request, fn func() time.Time) {
 	ticker := time.NewTicker(time.Second)
 
 	var prev []byte
+	opt := gif.NewOptimizer(ssTransIndex)
 loop:
 	for {
 		t := fn()
@@ -101,7 +119,8 @@ loop:
 			}
 			x += width
 		}
-		if err := enc.WriteFrame(&gif.Frame{Image: pm.SubImage(crop).(*image.Paletted), DelayTime: time.Second}); err != nil {
+		pm, _ := opt.Optimize(pm.SubImage(crop).(*image.Paletted))
+		if err := enc.WriteFrame(&gif.Frame{Image: pm, DelayTime: time.Second}); err != nil {
 			panic(err)
 		}
 		if err := enc.Flush(); err != nil {

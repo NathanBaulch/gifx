@@ -3,6 +3,7 @@
 * Encode and decode images one at a time to reduce peak memory usage.
 * Extract the first image from an animation without parsing the entire file. 
 * Store and retrieve comment and plain text extension data.
+* Optimize output file size by only storing inter-frame changes.
 
 Original code copyright 2013 The Go Authors. No changes have been made to the original `reader.go` and `writer.go` source files as forked from Go 1.18.
 
@@ -48,4 +49,19 @@ for i := 0; i < 100; i++ {
 }
 enc.WriteTrailer()
 enc.Flush()
+```
+
+# Optimize example
+
+Optimize each frame by replacing unchanged pixels with the transparent palette entry and optionally cropping the image.
+
+```go
+pal[0xff] = color.Transparent
+opt := gif.NewOptimizer(0xff)
+pm := image.NewPaletted(image.Rect(0, 0, 100, 100), pal)
+for {
+    // draw frame
+    pm, _ := opt.Optimize(pm)
+    _ = enc.WriteFrame(&gif.Frame{Image: pm})
+}
 ```

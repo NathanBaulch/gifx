@@ -1,4 +1,4 @@
-package gif
+package gif_test
 
 import (
 	"fmt"
@@ -7,13 +7,15 @@ import (
 	"io"
 	"math/rand"
 	"os"
+
+	"github.com/NathanBaulch/gifx"
 )
 
 func ExampleNewEncoder() {
 	f, _ := os.Create("tmp.gif")
 	defer f.Close()
 
-	enc := NewEncoder(f)
+	enc := gif.NewEncoder(f)
 	pal := make(color.Palette, 0x100)
 	for i := range pal {
 		pal[i] = color.Gray{Y: uint8(i)}
@@ -24,7 +26,7 @@ func ExampleNewEncoder() {
 	pm := image.NewPaletted(image.Rect(0, 0, 100, 100), pal)
 	for i := 0; i < 100; i++ {
 		rand.Read(pm.Pix)
-		_ = enc.WriteFrame(&Frame{Image: pm})
+		_ = enc.WriteFrame(&gif.Frame{Image: pm})
 	}
 
 	_ = enc.WriteTrailer()
@@ -35,16 +37,16 @@ func ExampleNewDecoder() {
 	f, _ := os.Open("tmp.gif")
 	defer f.Close()
 
-	dec := NewDecoder(f)
+	dec := gif.NewDecoder(f)
 	_, _ = dec.ReadHeader()
 
 	i := 0
 	for {
 		if blk, err := dec.ReadBlock(); err == io.EOF {
 			break
-		} else if frm, ok := blk.(*Frame); ok {
+		} else if frm, ok := blk.(*gif.Frame); ok {
 			f, _ := os.Create(fmt.Sprintf("tmp%d.gif", i))
-			_ = Encode(f, frm.Image, nil)
+			_ = gif.Encode(f, frm.Image, nil)
 			_ = f.Close()
 			i++
 		}

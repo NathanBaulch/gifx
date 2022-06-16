@@ -124,11 +124,11 @@ func TestSubImage(t *testing.T) {
 	var buf bytes.Buffer
 	err = NewEncoder(&buf).EncodeImage(m0)
 	if err != nil {
-		t.Fatalf("Encode: %v", err)
+		t.Fatalf("EncodeImage: %v", err)
 	}
 	m1, err := NewDecoder(&buf).DecodeFirst()
 	if err != nil {
-		t.Fatalf("Decode: %v", err)
+		t.Fatalf("DecodeFirst: %v", err)
 	}
 	if m0.Bounds() != m1.Bounds() {
 		t.Fatalf("bounds differ: %v and %v", m0.Bounds(), m1.Bounds())
@@ -214,7 +214,7 @@ func testEncodeAll(t *testing.T, go1Dot5Fields bool, useGlobalColorModel bool) {
 
 	var buf bytes.Buffer
 	if err := NewEncoder(&buf).Encode(g0); err != nil {
-		t.Fatal("EncodeAll:", err)
+		t.Fatal("Encode:", err)
 	}
 	encoded := buf.Bytes()
 	config, err := NewDecoder(bytes.NewReader(encoded)).DecodeConfig()
@@ -223,11 +223,11 @@ func testEncodeAll(t *testing.T, go1Dot5Fields bool, useGlobalColorModel bool) {
 	}
 	g1, err := NewDecoder(bytes.NewReader(encoded)).Decode()
 	if err != nil {
-		t.Fatal("DecodeAll:", err)
+		t.Fatal("Decode:", err)
 	}
 
 	if !reflect.DeepEqual(config, g1.Config) {
-		t.Errorf("DecodeConfig inconsistent with DecodeAll")
+		t.Errorf("DecodeConfig inconsistent with Decode")
 	}
 	if !palettesEqual(g1.Config.ColorModel.(color.Palette), globalColorModel.(color.Palette)) {
 		t.Errorf("unexpected global color model")
@@ -482,11 +482,11 @@ func TestEncodePalettes(t *testing.T) {
 
 	var buf bytes.Buffer
 	if err := NewEncoder(&buf).Encode(g0); err != nil {
-		t.Fatalf("EncodeAll: %v", err)
+		t.Fatalf("Encode: %v", err)
 	}
 	g1, err := NewDecoder(&buf).Decode()
 	if err != nil {
-		t.Fatalf("DecodeAll: %v", err)
+		t.Fatalf("Decode: %v", err)
 	}
 	if len(g0.Image) != len(g1.Image) {
 		t.Fatalf("image lengths differ: %d and %d", len(g0.Image), len(g1.Image))
@@ -634,11 +634,11 @@ func TestEncodeWrappedImage(t *testing.T) {
 	buf = new(bytes.Buffer)
 	err = NewEncoder(buf).EncodeImage(w0)
 	if err != nil {
-		t.Fatalf("Encode: %v", err)
+		t.Fatalf("EncodeImage: %v", err)
 	}
 	w1, err = NewDecoder(buf).DecodeFirst()
 	if err != nil {
-		t.Fatalf("Dencode: %v", err)
+		t.Fatalf("DencodeFirst: %v", err)
 	}
 
 	b1 := image.Rectangle{

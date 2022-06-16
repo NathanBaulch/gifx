@@ -164,7 +164,7 @@ func TestTransparentIndex(t *testing.T) {
 
 	g, err := NewDecoder(b).Decode()
 	if err != nil {
-		t.Fatalf("DecodeAll: %v", err)
+		t.Fatalf("Decode: %v", err)
 	}
 	c0 := color.RGBA{paletteStr[0], paletteStr[1], paletteStr[2], 0xff}
 	c1 := color.RGBA{paletteStr[3], paletteStr[4], paletteStr[5], 0xff}
@@ -356,16 +356,16 @@ func TestLoopCount(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			img, err := NewDecoder(bytes.NewReader(tc.data)).Decode()
 			if err != nil {
-				t.Fatal("DecodeAll:", err)
+				t.Fatal("Decode:", err)
 			}
 			w := new(bytes.Buffer)
 			err = NewEncoder(w).Encode(img)
 			if err != nil {
-				t.Fatal("EncodeAll:", err)
+				t.Fatal("Encode:", err)
 			}
 			img1, err := NewDecoder(w).Decode()
 			if err != nil {
-				t.Fatal("DecodeAll:", err)
+				t.Fatal("Decode:", err)
 			}
 			if img.LoopCount != tc.loopCount {
 				t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, tc.loopCount)
@@ -405,14 +405,14 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 	}
 	buf := new(bytes.Buffer)
 	if err := NewEncoder(buf).Encode(hugeGIF); err != nil {
-		t.Fatal("EncodeAll:", err)
+		t.Fatal("Encode:", err)
 	}
 	s0, s1 := new(runtime.MemStats), new(runtime.MemStats)
 	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(5))
 	runtime.ReadMemStats(s0)
 	if _, err := NewDecoder(buf).DecodeFirst(); err != nil {
-		t.Fatal("Decode:", err)
+		t.Fatal("DecodeFirst:", err)
 	}
 	runtime.ReadMemStats(s1)
 	if heapDiff := int64(s1.HeapAlloc - s0.HeapAlloc); heapDiff > 30<<20 {

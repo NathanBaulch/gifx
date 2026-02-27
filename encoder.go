@@ -161,7 +161,7 @@ func (e *Encoder) WritePlainText(pt *PlainText) error {
 		e.buf[1] = eGraphicControl
 		e.buf[2] = 0x04
 		e.buf[3] = pt.DisposalMethod << 2
-		writeUint16(e.buf[4:6], uint16(pt.DelayTime/(10*time.Millisecond)))
+		lePutUint16(e.buf[4:6], uint16(pt.DelayTime/(10*time.Millisecond)))
 		e.buf[6] = 0x00
 		e.buf[7] = 0x00
 		e.write(e.buf[:8])
@@ -170,10 +170,10 @@ func (e *Encoder) WritePlainText(pt *PlainText) error {
 	e.buf[0] = sExtension
 	e.buf[1] = eText
 	e.buf[2] = 0x0c
-	writeUint16(e.buf[3:5], pt.TextGridLeftPosition)
-	writeUint16(e.buf[5:7], pt.TextGridTopPosition)
-	writeUint16(e.buf[7:9], pt.TextGridWidth)
-	writeUint16(e.buf[9:11], pt.TextGridHeight)
+	lePutUint16(e.buf[3:5], pt.TextGridLeftPosition)
+	lePutUint16(e.buf[5:7], pt.TextGridTopPosition)
+	lePutUint16(e.buf[7:9], pt.TextGridWidth)
+	lePutUint16(e.buf[9:11], pt.TextGridHeight)
 	e.buf[11] = pt.CharacterCellWidth
 	e.buf[12] = pt.CharacterCellHeight
 	e.buf[13] = pt.TextForegroundColorIndex
@@ -243,7 +243,7 @@ func (e *Encoder) WriteApplicationNetscape(an *ApplicationNetscape) error {
 
 	e.buf[0] = 0x03
 	e.buf[1] = 0x01
-	writeUint16(e.buf[2:4], uint16(an.LoopCount))
+	lePutUint16(e.buf[2:4], uint16(an.LoopCount))
 	if e.write(e.buf[:4]); e.err != nil {
 		return e.err
 	}

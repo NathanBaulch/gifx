@@ -34,7 +34,7 @@ func readGIF(filename string) (*GIF, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return NewDecoder(f).Decode()
+	return DecodeAll(f)
 }
 
 func delta(u0, u1 uint32) int64 {
@@ -52,7 +52,7 @@ func averageDelta(m0, m1 image.Image) int64 {
 	return averageDeltaBound(m0, m1, b, b)
 }
 
-// averageDeltaBounds returns the average delta in RGB space. The average delta is
+// averageDeltaBound returns the average delta in RGB space. The average delta is
 // calculated in the specified bounds.
 func averageDeltaBound(m0, m1 image.Image, b0, b1 image.Rectangle) int64 {
 	var sum, n int64
@@ -79,9 +79,9 @@ var testCase = []struct {
 	filename  string
 	tolerance int64
 }{
-	{"./testdata/video-001.png", 1 << 12},
-	{"./testdata/video-001.gif", 0},
-	{"./testdata/video-001.interlaced.gif", 0},
+	{"testdata/video-001.png", 1 << 12},
+	{"testdata/video-001.gif", 0},
+	{"testdata/video-001.interlaced.gif", 0},
 }
 
 func TestWriter(t *testing.T) {
@@ -92,12 +92,12 @@ func TestWriter(t *testing.T) {
 			continue
 		}
 		var buf bytes.Buffer
-		err = NewEncoder(&buf).EncodeImage(m0)
+		err = Encode(&buf, m0, nil)
 		if err != nil {
 			t.Error(tc.filename, err)
 			continue
 		}
-		m1, err := NewDecoder(&buf).DecodeFirst()
+		m1, err := Decode(&buf)
 		if err != nil {
 			t.Error(tc.filename, err)
 			continue
@@ -116,19 +116,19 @@ func TestWriter(t *testing.T) {
 }
 
 func TestSubImage(t *testing.T) {
-	m0, err := readImg("./testdata/video-001.gif")
+	m0, err := readImg("testdata/video-001.gif")
 	if err != nil {
 		t.Fatalf("readImg: %v", err)
 	}
 	m0 = m0.(*image.Paletted).SubImage(image.Rect(0, 0, 50, 30))
 	var buf bytes.Buffer
-	err = NewEncoder(&buf).EncodeImage(m0)
+	err = Encode(&buf, m0, nil)
 	if err != nil {
-		t.Fatalf("EncodeImage: %v", err)
+		t.Fatalf("Encode: %v", err)
 	}
-	m1, err := NewDecoder(&buf).DecodeFirst()
+	m1, err := Decode(&buf)
 	if err != nil {
-		t.Fatalf("DecodeFirst: %v", err)
+		t.Fatalf("Decode: %v", err)
 	}
 	if m0.Bounds() != m1.Bounds() {
 		t.Fatalf("bounds differ: %v and %v", m0.Bounds(), m1.Bounds())
@@ -166,8 +166,8 @@ func palettesEqual(p, q color.Palette) bool {
 }
 
 var frames = []string{
-	"./testdata/video-001.gif",
-	"./testdata/video-005.gray.gif",
+	"testdata/video-001.gif",
+	"testdata/video-005.gray.gif",
 }
 
 func testEncodeAll(t *testing.T, go1Dot5Fields bool, useGlobalColorModel bool) {
@@ -213,21 +213,21 @@ func testEncodeAll(t *testing.T, go1Dot5Fields bool, useGlobalColorModel bool) {
 	}
 
 	var buf bytes.Buffer
-	if err := NewEncoder(&buf).Encode(g0); err != nil {
-		t.Fatal("Encode:", err)
+	if err := EncodeAll(&buf, g0); err != nil {
+		t.Fatal("EncodeAll:", err)
 	}
 	encoded := buf.Bytes()
-	config, err := NewDecoder(bytes.NewReader(encoded)).DecodeConfig()
+	config, err := DecodeConfig(bytes.NewReader(encoded))
 	if err != nil {
 		t.Fatal("DecodeConfig:", err)
 	}
-	g1, err := NewDecoder(bytes.NewReader(encoded)).Decode()
+	g1, err := DecodeAll(bytes.NewReader(encoded))
 	if err != nil {
-		t.Fatal("Decode:", err)
+		t.Fatal("DecodeAll:", err)
 	}
 
 	if !reflect.DeepEqual(config, g1.Config) {
-		t.Errorf("DecodeConfig inconsistent with Decode")
+		t.Errorf("DecodeConfig inconsistent with DecodeAll")
 	}
 	if !palettesEqual(g1.Config.ColorModel.(color.Palette), globalColorModel.(color.Palette)) {
 		t.Errorf("unexpected global color model")
@@ -285,7 +285,7 @@ func TestEncodeMismatchDelay(t *testing.T) {
 		Image: images,
 		Delay: make([]int, 1),
 	}
-	if err := NewEncoder(io.Discard).Encode(g0); err == nil {
+	if err := EncodeAll(io.Discard, g0); err == nil {
 		t.Error("expected error from mismatched delay and image slice lengths")
 	}
 
@@ -297,13 +297,13 @@ func TestEncodeMismatchDelay(t *testing.T) {
 	for i := range g1.Disposal {
 		g1.Disposal[i] = DisposalNone
 	}
-	if err := NewEncoder(io.Discard).Encode(g1); err == nil {
+	if err := EncodeAll(io.Discard, g1); err == nil {
 		t.Error("expected error from mismatched disposal and image slice lengths")
 	}
 }
 
 func TestEncodeZeroGIF(t *testing.T) {
-	if err := NewEncoder(io.Discard).Encode(&GIF{}); err == nil {
+	if err := EncodeAll(io.Discard, &GIF{}); err == nil {
 		t.Error("expected error from providing empty gif")
 	}
 }
@@ -324,7 +324,7 @@ func TestEncodeAllFramesOutOfBounds(t *testing.T) {
 				Height: upperBound,
 			},
 		}
-		err := NewEncoder(io.Discard).Encode(g)
+		err := EncodeAll(io.Discard, g)
 		if upperBound >= 8 {
 			if err != nil {
 				t.Errorf("upperBound=%d: %v", upperBound, err)
@@ -351,11 +351,11 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
 			Max: p.Add(image.Point{6, 6}),
 		}, palette.Plan9)
 		var buf bytes.Buffer
-		if err := NewEncoder(&buf).EncodeImage(src); err != nil {
+		if err := Encode(&buf, src, nil); err != nil {
 			t.Errorf("p=%v: Encode: %v", p, err)
 			continue
 		}
-		m, err := NewDecoder(&buf).DecodeFirst()
+		m, err := Decode(&buf)
 		if err != nil {
 			t.Errorf("p=%v: Decode: %v", p, err)
 			continue
@@ -381,11 +381,11 @@ func TestEncodeNonZeroMinPoint(t *testing.T) {
 		src.SetRGBA(7, 7, color.RGBA{0x77, 0x77, 0x77, 0xFF})
 
 		var buf bytes.Buffer
-		if err := NewEncoder(&buf).EncodeImage(src); err != nil {
+		if err := Encode(&buf, src, nil); err != nil {
 			t.Errorf("gray-diagonal: Encode: %v", err)
 			return
 		}
-		m, err := NewDecoder(&buf).DecodeFirst()
+		m, err := Decode(&buf)
 		if err != nil {
 			t.Errorf("gray-diagonal: Decode: %v", err)
 			return
@@ -430,7 +430,7 @@ func TestEncodeImplicitConfigSize(t *testing.T) {
 			Image: images,
 			Delay: make([]int, len(images)),
 		}
-		err := NewEncoder(io.Discard).Encode(g)
+		err := EncodeAll(io.Discard, g)
 		if lowerBound >= 0 {
 			if err != nil {
 				t.Errorf("lowerBound=%d: %v", lowerBound, err)
@@ -481,12 +481,12 @@ func TestEncodePalettes(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	if err := NewEncoder(&buf).Encode(g0); err != nil {
-		t.Fatalf("Encode: %v", err)
+	if err := EncodeAll(&buf, g0); err != nil {
+		t.Fatalf("EncodeAll: %v", err)
 	}
-	g1, err := NewDecoder(&buf).Decode()
+	g1, err := DecodeAll(&buf)
 	if err != nil {
-		t.Fatalf("Decode: %v", err)
+		t.Fatalf("DecodeAll: %v", err)
 	}
 	if len(g0.Image) != len(g1.Image) {
 		t.Fatalf("image lengths differ: %d and %d", len(g0.Image), len(g1.Image))
@@ -509,7 +509,7 @@ func TestEncodeBadPalettes(t *testing.T) {
 				}
 			}
 
-			err := NewEncoder(io.Discard).Encode(&GIF{
+			err := EncodeAll(io.Discard, &GIF{
 				Image: []*image.Paletted{
 					image.NewPaletted(image.Rect(0, 0, w, h), pal),
 				},
@@ -578,11 +578,11 @@ func TestEncodeCroppedSubImages(t *testing.T) {
 	for _, sr := range subImages {
 		si := whole.SubImage(sr)
 		buf := bytes.NewBuffer(nil)
-		if err := NewEncoder(buf).EncodeImage(si); err != nil {
+		if err := Encode(buf, si, nil); err != nil {
 			t.Errorf("Encode: sr=%v: %v", sr, err)
 			continue
 		}
-		if _, err := NewDecoder(buf).DecodeFirst(); err != nil {
+		if _, err := Decode(buf); err != nil {
 			t.Errorf("Decode: sr=%v: %v", sr, err)
 		}
 	}
@@ -598,7 +598,7 @@ func (i offsetImage) Bounds() image.Rectangle {
 }
 
 func TestEncodeWrappedImage(t *testing.T) {
-	m0, err := readImg("./testdata/video-001.gif")
+	m0, err := readImg("testdata/video-001.gif")
 	if err != nil {
 		t.Fatalf("readImg: %v", err)
 	}
@@ -606,13 +606,13 @@ func TestEncodeWrappedImage(t *testing.T) {
 	// Case 1: Encode a wrapped image.Image
 	buf := new(bytes.Buffer)
 	w0 := offsetImage{m0, m0.Bounds()}
-	err = NewEncoder(buf).EncodeImage(w0)
+	err = Encode(buf, w0, nil)
 	if err != nil {
-		t.Fatalf("EncodeImage: %v", err)
+		t.Fatalf("Encode: %v", err)
 	}
-	w1, err := NewDecoder(buf).DecodeFirst()
+	w1, err := Decode(buf)
 	if err != nil {
-		t.Fatalf("DecodeFirst: %v", err)
+		t.Fatalf("Dencode: %v", err)
 	}
 	avgDelta := averageDelta(m0, w1)
 	if avgDelta > 0 {
@@ -632,13 +632,13 @@ func TestEncodeWrappedImage(t *testing.T) {
 	}
 	w0 = offsetImage{m0, b0}
 	buf = new(bytes.Buffer)
-	err = NewEncoder(buf).EncodeImage(w0)
+	err = Encode(buf, w0, nil)
 	if err != nil {
-		t.Fatalf("EncodeImage: %v", err)
+		t.Fatalf("Encode: %v", err)
 	}
-	w1, err = NewDecoder(buf).DecodeFirst()
+	w1, err = Decode(buf)
 	if err != nil {
-		t.Fatalf("DencodeFirst: %v", err)
+		t.Fatalf("Dencode: %v", err)
 	}
 
 	b1 := image.Rectangle{
@@ -668,7 +668,7 @@ func BenchmarkEncodeRandomPaletted(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewEncoder(io.Discard).EncodeImage(paletted)
+		Encode(io.Discard, paletted, nil)
 	}
 }
 
@@ -691,12 +691,12 @@ func BenchmarkEncodeRandomRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewEncoder(io.Discard).EncodeImage(rgba)
+		Encode(io.Discard, rgba, nil)
 	}
 }
 
 func BenchmarkEncodeRealisticPaletted(b *testing.B) {
-	img, err := readImg("./testdata/video-001.png")
+	img, err := readImg("testdata/video-001.png")
 	if err != nil {
 		b.Fatalf("readImg: %v", err)
 	}
@@ -708,12 +708,12 @@ func BenchmarkEncodeRealisticPaletted(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewEncoder(io.Discard).EncodeImage(paletted)
+		Encode(io.Discard, paletted, nil)
 	}
 }
 
 func BenchmarkEncodeRealisticRGBA(b *testing.B) {
-	img, err := readImg("./testdata/video-001.png")
+	img, err := readImg("testdata/video-001.png")
 	if err != nil {
 		b.Fatalf("readImg: %v", err)
 	}
@@ -729,6 +729,6 @@ func BenchmarkEncodeRealisticRGBA(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewEncoder(io.Discard).EncodeImage(rgba)
+		Encode(io.Discard, rgba, nil)
 	}
 }

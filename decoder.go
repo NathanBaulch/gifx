@@ -200,10 +200,10 @@ func (d *Decoder) readPlainText() (*PlainText, error) {
 	}
 
 	pt := &PlainText{
-		TextGridLeftPosition:     readUint16(d.tmp[1:3]),
-		TextGridTopPosition:      readUint16(d.tmp[3:5]),
-		TextGridWidth:            readUint16(d.tmp[5:7]),
-		TextGridHeight:           readUint16(d.tmp[7:9]),
+		TextGridLeftPosition:     leUint16(d.tmp[1:3]),
+		TextGridTopPosition:      leUint16(d.tmp[3:5]),
+		TextGridWidth:            leUint16(d.tmp[5:7]),
+		TextGridHeight:           leUint16(d.tmp[7:9]),
 		CharacterCellWidth:       d.tmp[9],
 		CharacterCellHeight:      d.tmp[10],
 		TextForegroundColorIndex: d.tmp[11],
@@ -254,7 +254,7 @@ func (d *Decoder) readApplication() (interface{}, error) {
 		if n, err := d.readBlock(); err != nil {
 			return nil, fmt.Errorf("gif: reading application extension: %v", err)
 		} else if n == 3 && d.tmp[0] == 1 {
-			d.loopCount = int(readUint16(d.tmp[1:]))
+			d.loopCount = int(leUint16(d.tmp[1:]))
 		}
 		if sb, err := d.readSubBlocks(); err != nil {
 			return nil, fmt.Errorf("gif: reading application extension: %v", err)

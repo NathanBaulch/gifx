@@ -5,7 +5,7 @@
 * Store and retrieve comment and plain text extension data.
 * Optimize output file size by only storing inter-frame changes.
 
-Original code copyright 2013 The Go Authors. No changes have been made to the original `reader.go` and `writer.go` source files as forked from Go 1.18.
+Original code copyright 2013 The Go Authors. No changes have been made to the original `reader.go` and `writer.go` source files as forked from Go 1.26.
 
 # Decode example
 

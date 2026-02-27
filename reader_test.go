@@ -7,6 +7,7 @@ package gif
 import (
 	"bytes"
 	"compress/lzw"
+	"encoding/hex"
 	"image"
 	"image/color"
 	"image/color/palette"
@@ -28,7 +29,7 @@ const (
 	trailerStr = "\x3b"
 )
 
-// lzw.NewReader wants a io.ByteReader, this ensures we're compatible.
+// lzw.NewReader wants an io.ByteReader, this ensures we're compatible.
 var _ io.ByteReader = (*blockReader)(nil)
 
 // lzwEncode returns an LZW encoding (with 2-bit literals) of in.
@@ -114,7 +115,7 @@ func TestDecode(t *testing.T) {
 		b.WriteByte(0x00) // An empty block signifies the end of the image data.
 		b.WriteString(trailerStr)
 
-		got, err := NewDecoder(b).DecodeFirst()
+		got, err := Decode(b)
 		if err != tc.wantErr {
 			t.Errorf("nPix=%d, extraExisting=%d, extraSeparate=%d\ngot  %v\nwant %v",
 				tc.nPix, tc.extraExisting, tc.extraSeparate, err, tc.wantErr)
@@ -162,9 +163,9 @@ func TestTransparentIndex(t *testing.T) {
 	}
 	b.WriteString(trailerStr)
 
-	g, err := NewDecoder(b).Decode()
+	g, err := DecodeAll(b)
 	if err != nil {
-		t.Fatalf("Decode: %v", err)
+		t.Fatalf("DecodeAll: %v", err)
 	}
 	c0 := color.RGBA{paletteStr[0], paletteStr[1], paletteStr[2], 0xff}
 	c1 := color.RGBA{paletteStr[3], paletteStr[4], paletteStr[5], 0xff}
@@ -203,7 +204,7 @@ var testGIF = []byte{
 }
 
 func try(t *testing.T, b []byte, want string) {
-	_, err := NewDecoder(bytes.NewReader(b)).Decode()
+	_, err := DecodeAll(bytes.NewReader(b))
 	var got string
 	if err != nil {
 		got = err.Error()
@@ -354,18 +355,18 @@ func TestLoopCount(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			img, err := NewDecoder(bytes.NewReader(tc.data)).Decode()
+			img, err := DecodeAll(bytes.NewReader(tc.data))
 			if err != nil {
-				t.Fatal("Decode:", err)
+				t.Fatal("DecodeAll:", err)
 			}
 			w := new(bytes.Buffer)
-			err = NewEncoder(w).Encode(img)
+			err = EncodeAll(w, img)
 			if err != nil {
-				t.Fatal("Encode:", err)
+				t.Fatal("EncodeAll:", err)
 			}
-			img1, err := NewDecoder(w).Decode()
+			img1, err := DecodeAll(w)
 			if err != nil {
-				t.Fatal("Decode:", err)
+				t.Fatal("DecodeAll:", err)
 			}
 			if img.LoopCount != tc.loopCount {
 				t.Errorf("loop count mismatch: %d vs %d", img.LoopCount, tc.loopCount)
@@ -379,11 +380,14 @@ func TestLoopCount(t *testing.T) {
 
 func TestUnexpectedEOF(t *testing.T) {
 	for i := len(testGIF) - 1; i >= 0; i-- {
-		_, err := NewDecoder(bytes.NewReader(testGIF[:i])).DecodeFirst()
-		if err == nil || err == errNotEnough {
+		_, err := DecodeAll(bytes.NewReader(testGIF[:i]))
+		if err == errNotEnough {
 			continue
 		}
-		text := err.Error()
+		text := ""
+		if err != nil {
+			text = err.Error()
+		}
 		if !strings.HasPrefix(text, "gif:") || !strings.HasSuffix(text, ": unexpected EOF") {
 			t.Errorf("Decode(testGIF[:%d]) = %v, want gif: ...: unexpected EOF", i, err)
 		}
@@ -404,15 +408,15 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 		hugeGIF.Delay[i] = 60
 	}
 	buf := new(bytes.Buffer)
-	if err := NewEncoder(buf).Encode(hugeGIF); err != nil {
-		t.Fatal("Encode:", err)
+	if err := EncodeAll(buf, hugeGIF); err != nil {
+		t.Fatal("EncodeAll:", err)
 	}
 	s0, s1 := new(runtime.MemStats), new(runtime.MemStats)
 	runtime.GC()
 	defer debug.SetGCPercent(debug.SetGCPercent(5))
 	runtime.ReadMemStats(s0)
-	if _, err := NewDecoder(buf).DecodeFirst(); err != nil {
-		t.Fatal("DecodeFirst:", err)
+	if _, err := Decode(buf); err != nil {
+		t.Fatal("Decode:", err)
 	}
 	runtime.ReadMemStats(s1)
 	if heapDiff := int64(s1.HeapAlloc - s0.HeapAlloc); heapDiff > 30<<20 {
@@ -421,11 +425,11 @@ func TestDecodeMemoryConsumption(t *testing.T) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	data, err := os.ReadFile("./testdata/video-001.gif")
+	data, err := os.ReadFile("testdata/video-001.gif")
 	if err != nil {
 		b.Fatal(err)
 	}
-	cfg, err := NewDecoder(bytes.NewReader(data)).DecodeConfig()
+	cfg, err := DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -433,6 +437,21 @@ func BenchmarkDecode(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		NewDecoder(bytes.NewReader(data)).DecodeFirst()
+		Decode(bytes.NewReader(data))
+	}
+}
+
+func TestReencodeExtendedPalette(t *testing.T) {
+	data, err := hex.DecodeString("4749463839616c02020157220221ff0b280154ffffffff00000021474946306127dc213000ff84ff840000000000800021ffffffff8f4e4554530041508f8f0202020000000000000000000000000202020202020207020202022f31050000000000000021f904ab2c3826002c00000000c00001009800462b07fc1f02061202020602020202220202930202020202020202020202020286090222202222222222222222222222222222222222222222222222222220222222222222222222222222222222222222222222222222221a22222222332223222222222222222222222222222222222222224b222222222222002200002b474946312829021f0000000000cbff002f0202073121f904ab2c2c000021f92c3803002c00e0c0000000f932")
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = Encode(io.Discard, img, &Options{NumColors: 1})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

@@ -1,11 +1,11 @@
 package gif_test
 
 import (
+	"crypto/rand"
 	"fmt"
 	"image"
 	"image/color"
 	"io"
-	"math/rand"
 	"os"
 
 	"github.com/NathanBaulch/gifx"

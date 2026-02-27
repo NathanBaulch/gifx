@@ -64,7 +64,7 @@ func handleTime(w http.ResponseWriter, req *http.Request) {
 func handleStopwatch(w http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	zero := time.Time{}
-	handle(w, req, func() time.Time { return zero.Add(time.Now().Sub(start)) })
+	handle(w, req, func() time.Time { return zero.Add(time.Since(start)) })
 }
 
 func handleTimer(w http.ResponseWriter, req *http.Request) {

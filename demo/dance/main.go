@@ -19,13 +19,14 @@ func main() {
 	}
 
 	levels := []rune(" ░▒▓█")
-	loops := gm.LoopCount
-	if loops == -1 {
+	var loops int
+	switch gm.LoopCount {
+	case -1:
 		loops = 1
-	} else if loops == 0 {
+	case 0:
 		loops = -1
-	} else {
-		loops++
+	default:
+		loops = gm.LoopCount + 1
 	}
 	buf := make([][]rune, gm.Config.Height)
 	for y := range buf {
@@ -51,7 +52,7 @@ func main() {
 			for y := range buf {
 				println(string(buf[y]))
 			}
-			time.Sleep(time.Duration(gm.Delay[i])*10*time.Millisecond - time.Now().Sub(n))
+			time.Sleep(time.Duration(gm.Delay[i])*10*time.Millisecond - time.Since(n))
 			n = time.Now()
 			if gm.Disposal[i] == gif.DisposalBackground || i == len(gm.Image)-1 {
 				l := levels[(color.GrayModel.Convert(im.Palette[gm.BackgroundIndex]).(color.Gray).Y / 52)]

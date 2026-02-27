@@ -132,7 +132,7 @@ func (d *Decoder) ReadHeader() (*Header, error) {
 	}, nil
 }
 
-func (d *Decoder) ReadBlock() (interface{}, error) {
+func (d *Decoder) ReadBlock() (any, error) {
 	for {
 		c, err := readByte(d.r)
 		if err != nil {
@@ -168,7 +168,7 @@ func (d *Decoder) ReadBlock() (interface{}, error) {
 	}
 }
 
-func (d *Decoder) readExtension_() (interface{}, error) {
+func (d *Decoder) readExtension_() (any, error) {
 	label, err := readByte(d.r)
 	if err != nil {
 		return nil, fmt.Errorf("gif: reading extension: %v", err)
@@ -245,7 +245,7 @@ func (d *Decoder) readStrings() ([]string, error) {
 	}
 }
 
-func (d *Decoder) readApplication() (interface{}, error) {
+func (d *Decoder) readApplication() (any, error) {
 	if b, err := readByte(d.r); err != nil {
 		return nil, fmt.Errorf("gif: reading application extension: %v", err)
 	} else if err := readFull(d.r, d.tmp[:int(b)]); err != nil {

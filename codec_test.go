@@ -9,13 +9,16 @@ import (
 	"reflect"
 	"testing"
 	"time"
+)
 
-	"golang.org/x/image/colornames"
+var (
+	black = color.RGBAModel.Convert(color.Black)
+	white = color.RGBAModel.Convert(color.White)
 )
 
 func TestFrame(t *testing.T) {
 	f := &Frame{
-		Image:          image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{colornames.Black, colornames.White}),
+		Image:          image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{black, white}),
 		DelayTime:      90 * time.Millisecond,
 		DisposalMethod: DisposalBackground,
 	}
@@ -147,7 +150,7 @@ func doEncode(t *testing.T, fn func(*Encoder)) []byte {
 		t.Fatal("WriteHeader:", err)
 	}
 	fn(enc)
-	if err := enc.WriteFrame(&Frame{Image: image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{colornames.Black, colornames.White})}); err != nil {
+	if err := enc.WriteFrame(&Frame{Image: image.NewPaletted(image.Rect(0, 0, 1, 1), color.Palette{black, white})}); err != nil {
 		t.Fatal("WriteFrame:", err)
 	}
 	if err := enc.WriteTrailer(); err != nil {
